@@ -1,0 +1,52 @@
+# Question 3
+# For this question, calculate the win/loss ratio's correlation with the population of the city it is in for the MLB using 2018 data.
+
+import pandas as pd
+import numpy as np
+import scipy.stats as stats
+
+
+def team_mlb(team):
+    return team.split()[-1]
+
+
+def city_mlb(j):
+    for i in mlb_city.index.values:
+        if j in i:
+            town = mlb_city.loc[i]
+            return town[0]
+
+
+mlb_df = pd.read_csv("mlb.csv")
+cities = pd.read_html("wikipedia_data.html")[1]
+cities = cities.iloc[:-1, [0, 3, 5, 6, 7, 8]]
+mlb_city = cities[['Metropolitan area', 'MLB']].replace('\[\w+\s\d*\]', '', regex=True).set_index('MLB')
+cities = cities[['Metropolitan area', 'Population (2016 est.)[8]']].replace('\[\w+\s\d*\]', '', regex=True).replace('—','',regex=True).set_index('Metropolitan area')
+mlb_df = mlb_df.where(mlb_df['year'] == 2018).dropna()
+
+
+def mlb_correlation():
+    # YOUR CODE HERE
+    #     raise NotImplementedError()
+    mlb_df['city'] = mlb_df['team'].apply(lambda x: team_mlb(x))
+    mlb_df['city'] = mlb_df['city'].apply(lambda x: city_mlb(x))
+    mlb_df['city'].loc[0] = 'Boston'
+    list_dict = []
+    for group, frame in mlb_df.groupby('city'):
+        win = np.sum(frame['W'].astype(int))
+        all = np.sum(frame['L'].astype(int)) + np.sum(frame['W'].astype(int))
+        ratio = win / all
+        ratio_dict = {'City': group, 'Ratio': ratio}
+        list_dict.append(ratio_dict)
+
+    last_df = pd.DataFrame(list_dict).set_index('City')
+    last_df = pd.merge(last_df, cities, how='inner', left_index=True, right_index=True)
+    win_loss_by_region = list(last_df['Ratio'])
+    population_by_region = list(last_df['Population (2016 est.)[8]'].astype(float))
+    #     print(len(win_loss_by_region))
+    assert len(population_by_region) == len(win_loss_by_region)  # "Q3: Your lists must be the same length"
+    assert len(population_by_region) == 26  # "Q3: There should be 26 teams being analysed for MLB"
+    return stats.pearsonr(population_by_region, win_loss_by_region)
+
+
+print(mlb_correlation())
